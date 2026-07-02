@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "314:5432"
+      - "5433:5432"        # host 5433 -> container 5432, avoids collision with other postgres containers
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -18,12 +18,10 @@ services:
   api:
     build: .
     environment:
-      DATABASE_URL: postgres://postgres:postgres@db:5432/draftroom
+      DATABASE_URL: postgres://postgres:postgres@db:5432/draftroom   # internal port stays 5432, unrelated to host mapping above
       PORT: 314
     ports:
-      - "314:314"
-      - "324:314"
-      - "334:314"
+      - "3140:314"          # host 3140 -> container 314
     depends_on:
       db:
         condition: service_healthy
