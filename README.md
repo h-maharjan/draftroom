@@ -21,7 +21,7 @@ A modern, interactive 3D room planner with persistent furniture and layout manag
 docker compose up --build
 ```
 
-Then open `http://localhost:3000`
+Then open `http://localhost:314` or any exposed host port: `314`, `324`, `334`
 
 ### Local Development
 
@@ -40,7 +40,7 @@ Then open `http://localhost:3000`
    npm start
    ```
 
-4. Open `http://localhost:3000`
+4. Open `http://localhost:314` or one of the exposed host ports: `314`, `324`, `334`
 
 ## How to Use
 
@@ -105,7 +105,7 @@ Create a `.env` file (optional, defaults are provided):
 
 ```env
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/draftroom
-PORT=3000
+PORT=314
 ```
 
 ## Technologies

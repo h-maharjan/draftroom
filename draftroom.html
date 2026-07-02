@@ -136,12 +136,16 @@
     letter-spacing:0.3px;
   }
   .btn:hover{border-color:var(--danger);color:var(--danger);} 
+  .btn:disabled{opacity:0.55;cursor:not-allowed;border-color:rgba(62,103,151,0.45);color:rgba(143,175,214,0.45);} 
   .btn.primary{border-color:var(--accent);color:var(--accent);} 
   .btn.primary:hover{border-color:var(--accent);color:#20140B;background:var(--accent);} 
   .layout-actions{display:flex;gap:8px;flex-wrap:wrap;} 
   #layout-panel{display:flex;gap:8px;align-items:center;flex-wrap:wrap;} 
-  #layout-list{display:flex;gap:8px;flex-wrap:wrap;max-width:320px;} 
-  #layout-list select{background:var(--navy-deep);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:7px 10px;font-family:'Inter',sans-serif;} 
+  .layout-card{padding:10px 12px;border:1px solid var(--line-soft);border-radius:8px;background:rgba(255,255,255,0.03);cursor:pointer;transition:transform 0.2s, border-color 0.2s, background 0.2s;margin-bottom:8px;}
+  .layout-card:hover{transform:translateY(-1px);border-color:var(--accent);background:rgba(255,138,61,0.08);}
+  .layout-card.selected{border-color:var(--accent);background:rgba(255,138,61,0.12);}
+  .layout-card .layout-name{font-size:13px;font-weight:700;color:var(--ink);}
+  .layout-card .layout-meta{font-size:11px;color:var(--muted);margin-top:4px;}
   .status-pill{font-size:11px;padding:4px 8px;border:1px solid var(--line-soft);border-radius:999px;color:var(--muted);background:rgba(255,138,61,0.1);}
 
   /* ---------- modals ---------- */
@@ -361,10 +365,7 @@
       <div id="layout-panel">
         <div class="layout-actions">
           <button class="btn primary" id="btn-save-layout">Save layout</button>
-          <button class="btn" id="btn-load-layout">Load layout</button>
-        </div>
-        <div id="layout-list">
-          <select id="layout-select"><option value="">Choose a saved layout</option></select>
+          <button class="btn" id="btn-load-layout">Choose layout</button>
         </div>
       </div>
       <button class="btn" id="btn-clear">Clear room</button>
@@ -386,7 +387,6 @@
   <div id="statusbar">
     <div id="status-text">Room <span class="val" id="status-room">5.0 × 4.0 m</span> · <span class="val" id="status-count">0</span> items placed <span class="status-pill" id="status-save">Offline</span></div>
     <div class="layout-actions">
-      <button class="btn" id="btn-new-furniture">Add furniture</button>
       <button class="btn" id="btn-resize">Resize selected</button>
     </div>
     <div id="selection-controls">
@@ -396,52 +396,6 @@
       <button class="icon-btn" id="btn-rot-cw" title="Rotate right">&#8635;</button>
       <button class="icon-btn danger" id="btn-delete" title="Delete">&#128465;</button>
   </div>
-
-</div>
-
-<!-- Furniture Editor Modal -->
-<div id="furniture-modal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header" id="furniture-modal-title">Add Furniture</div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label">Name</label>
-        <input type="text" class="form-input" id="form-name" placeholder="e.g., Custom Sofa">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Category</label>
-        <select class="form-input" id="form-category">
-          <option value="seating">Seating</option>
-          <option value="table">Table</option>
-          <option value="bedroom">Bedroom</option>
-          <option value="storage">Storage</option>
-          <option value="lighting">Lighting</option>
-          <option value="decor">Decor</option>
-          <option value="workspace">Workspace</option>
-          <option value="custom">Custom</option>
-        </select>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Width (m)</label>
-          <input type="number" class="form-input" id="form-width" min="0.1" max="5" step="0.1" value="1.0">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Depth (m)</label>
-          <input type="number" class="form-input" id="form-depth" min="0.1" max="5" step="0.1" value="1.0">
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Color</label>
-        <input type="color" class="form-input" id="form-color" value="#FF8A3D" style="padding:4px;cursor:pointer;height:38px;">
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeFurnitureModal()">Cancel</button>
-      <button class="btn-confirm" onclick="saveFurnitureFromModal()">Add Furniture</button>
-    </div>
-  </div>
-</div>
 
 <!-- Resize Modal -->
 <div id="resize-modal" class="modal">
@@ -899,9 +853,10 @@ function project(points, axis){
 
 function overlapIntervals(a,b){ return !(a.max < b.min || b.max < a.min); }
 
+const COLLISION_MARGIN = 0.04;
 function rectsOverlap(x1,z1,w1,d1,r1, x2,z2,w2,d2,r2){
-  const A = getRectCorners(x1,z1,w1,d1,r1);
-  const B = getRectCorners(x2,z2,w2,d2,r2);
+  const A = getRectCorners(x1,z1,w1 + COLLISION_MARGIN*2, d1 + COLLISION_MARGIN*2, r1);
+  const B = getRectCorners(x2,z2,w2 + COLLISION_MARGIN*2, d2 + COLLISION_MARGIN*2, r2);
   const axes = [];
   for(let i=0;i<4;i++){
     const p1 = A[i], p2 = A[(i+1)%4];
@@ -968,14 +923,16 @@ function removeFurniture(entry){
 function selectEntry(entry){
   if(selected) setOutline(selected, false);
   selected = entry;
-  if(selected) setOutline(selected, true);
-  const panel = document.getElementById('selection-controls');
+  const resizeButton = document.getElementById('btn-resize');
   if(selected){
-    panel.style.display = 'flex';
+    setOutline(selected, true);
+    document.getElementById('selection-controls').style.display = 'flex';
     document.getElementById('sel-name').textContent = selected.item.name;
     document.getElementById('rot-readout').textContent = Math.round(THREE.MathUtils.radToDeg(selected.rotY)%360)+'°';
+    if (resizeButton) resizeButton.disabled = false;
   } else {
-    panel.style.display = 'none';
+    document.getElementById('selection-controls').style.display = 'none';
+    if (resizeButton) resizeButton.disabled = true;
   }
 }
 
@@ -1041,33 +998,90 @@ async function loadFurnitureCatalog(){
   }
 }
 
+const MAX_LAYOUTS = 5;
 async function loadLayouts(){
-  const select = document.getElementById('layout-select');
-  select.innerHTML = '<option value="">Choose a saved layout</option>';
+  const saveButton = document.getElementById('btn-save-layout');
+  const statusSave = document.getElementById('status-save');
+  let serverAvailable = false;
   try {
     const data = await apiRequest('/api/layouts');
     layouts = Array.isArray(data) ? data.slice() : [];
+    serverAvailable = true;
   } catch (error) {
     console.warn('Layouts API not available, using local storage:', error.message);
     layouts = [];
-    document.getElementById('status-save').textContent = 'Offline';
+    statusSave.textContent = 'Offline';
   }
-  // merge with any locally-saved layouts
   try{
     const stored = JSON.parse(localStorage.getItem('draftroom_layouts')||'[]');
     if(Array.isArray(stored) && stored.length){
-      // ensure ids don't clash with server ids
-      stored.forEach(s=>{ layouts.push(s); });
+      const existingIds = new Set(layouts.map(l => String(l.id)));
+      stored.forEach(s => {
+        if(!existingIds.has(String(s.id))){
+          layouts.push(s);
+        }
+      });
     }
   } catch(e){ /* ignore */ }
-  layouts.forEach(layout=>{
-    const option = document.createElement('option');
-    option.value = layout.id;
-    option.textContent = layout.name;
-    select.appendChild(option);
-  });
-  if(currentLayoutId){ select.value = currentLayoutId; }
-  if(layouts.length) { document.getElementById('status-save').textContent = 'Saved'; document.getElementById('status-save').style.color = '#5E8C6A'; }
+  statusSave.textContent = serverAvailable ? `Saved (${layouts.length}/${MAX_LAYOUTS})` : `Offline (${layouts.length}/${MAX_LAYOUTS})`;
+  statusSave.style.color = serverAvailable ? '#5E8C6A' : '#8FAFD6';
+  if (saveButton) {
+    saveButton.disabled = layouts.length >= MAX_LAYOUTS;
+  }
+}
+
+function openLayoutSelector(){
+  const overlay = document.createElement('div');
+  overlay.className = 'modal active';
+  overlay.style.justifyContent = 'flex-start';
+  overlay.style.alignItems = 'flex-start';
+  overlay.style.padding = '80px 24px 24px';
+  overlay.style.background = 'rgba(0,0,0,0.65)';
+  overlay.innerHTML = `
+    <div class="modal-content" style="max-width:420px;width:100%;">
+      <div class="modal-header">Choose a layout</div>
+      <div class="modal-body" style="margin-bottom:16px;">
+        <div id="layout-selector-list"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="close-layout-selector">Cancel</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const selectorList = document.getElementById('layout-selector-list');
+  if (!layouts.length) {
+    const emptyMessage = document.createElement('div');
+    emptyMessage.className = 'layout-card';
+    emptyMessage.style.cursor = 'default';
+    emptyMessage.innerHTML = '<div class="layout-name">No saved layouts yet</div><div class="layout-meta">Use "Save layout" to create a layout and then load it here.</div>';
+    selectorList.appendChild(emptyMessage);
+  } else {
+    const countInfo = document.createElement('div');
+    countInfo.className = 'layout-meta';
+    countInfo.style.marginBottom = '10px';
+    countInfo.textContent = `Double-click a layout to open it. ${Math.min(layouts.length, MAX_LAYOUTS)} of ${MAX_LAYOUTS} saved.`;
+    selectorList.appendChild(countInfo);
+    layouts.slice(0, MAX_LAYOUTS).forEach(layout => {
+      const card = document.createElement('div');
+      card.className = 'layout-card';
+      card.innerHTML = `<div class="layout-name">${layout.name}</div><div class="layout-meta">${layout.width.toFixed(1)} × ${layout.depth.toFixed(1)} m · ${layout.items?.length||0} items</div>`;
+      card.addEventListener('dblclick', () => {
+        selectLayout(layout.id);
+        document.body.removeChild(overlay);
+      });
+      selectorList.appendChild(card);
+    });
+  }
+  document.getElementById('close-layout-selector').addEventListener('click', () => document.body.removeChild(overlay));
+}
+
+function selectLayout(id){
+  const layout = layouts.find(l=>String(l.id)===String(id));
+  if(!layout) return;
+  currentLayoutId = layout.id;
+  loadLayoutFromData(layout);
+  alert(`Loaded layout: ${layout.name}`);
 }
 
 function serializePlacedItems(){
@@ -1100,32 +1114,48 @@ function loadLayoutFromData(layout){
 }
 
 async function saveCurrentLayout(){
-  const name = prompt('Name this layout', currentLayoutId ? layouts.find(l=>l.id===currentLayoutId)?.name || 'My layout' : 'My layout');
+  const existingLayout = currentLayoutId ? layouts.find(l=>String(l.id)===String(currentLayoutId)) : null;
+  const defaultName = existingLayout ? existingLayout.name : 'My layout';
+  const name = prompt('Name this layout', defaultName);
   if(!name) return;
+  const overwriteExisting = existingLayout && confirm('Do you want to overwrite the currently loaded layout? Click OK to overwrite, Cancel to save as a new layout.');
+  if (!overwriteExisting && layouts.length >= MAX_LAYOUTS) {
+    alert(`You can only save up to ${MAX_LAYOUTS} layouts. Delete one or overwrite an existing layout instead.`);
+    return;
+  }
+  const layoutId = overwriteExisting ? currentLayoutId : ('local_' + Date.now());
   const payload = {
-    id: currentLayoutId || ('local_' + Date.now()),
+    id: layoutId,
     name,
     width: room.w,
     depth: room.d,
     items: serializePlacedItems()
   };
   try {
-    const result = currentLayoutId
+    const result = overwriteExisting
       ? await apiRequest(`/api/layouts/${currentLayoutId}`, {method:'PUT', body:JSON.stringify(payload)})
       : await apiRequest('/api/layouts', {method:'POST', body:JSON.stringify(payload)});
     currentLayoutId = result.id;
     await loadLayouts();
-    alert('Layout saved successfully.');
+    alert(overwriteExisting ? 'Layout updated successfully.' : 'New layout saved successfully.');
   } catch (error) {
-    // fallback: save locally
+    const msg = error.message || '';
+    if (msg.includes('Maximum of')) {
+      alert(msg);
+      return;
+    }
     try{
       const stored = JSON.parse(localStorage.getItem('draftroom_layouts')||'[]');
-      const localEntry = { id: payload.id, name: payload.name, width: payload.width, depth: payload.depth, items: payload.items };
+      if (stored.length >= MAX_LAYOUTS) {
+        alert(`Local save limit reached: only ${MAX_LAYOUTS} layouts can be saved.`);
+        return;
+      }
+      const localEntry = { id: layoutId, name: payload.name, width: payload.width, depth: payload.depth, items: payload.items };
       stored.push(localEntry);
       localStorage.setItem('draftroom_layouts', JSON.stringify(stored));
       currentLayoutId = localEntry.id;
       await loadLayouts();
-      alert('Layout saved locally (offline).');
+      alert(overwriteExisting ? 'Layout updated locally.' : 'New layout saved locally (offline).');
     } catch(e){
       alert('Failed to save layout: ' + (error.message||e.message));
     }
@@ -1133,77 +1163,7 @@ async function saveCurrentLayout(){
 }
 
 async function loadSelectedLayout(){
-  const select = document.getElementById('layout-select');
-  const id = select.value;
-  if(!id) return;
-  try {
-    const layout = layouts.find(l=>String(l.id)===String(id));
-    if(!layout) return;
-    currentLayoutId = layout.id;
-    loadLayoutFromData(layout);
-    alert('Layout loaded.');
-  } catch (error) {
-    alert(error.message);
-  }
-}
-
-async function createCustomFurniture(){
-  document.getElementById('form-name').value = '';
-  document.getElementById('form-category').value = 'custom';
-  document.getElementById('form-width').value = '1.0';
-  document.getElementById('form-depth').value = '1.0';
-  document.getElementById('form-color').value = '#FF8A3D';
-  document.getElementById('furniture-modal-title').textContent = 'Add Furniture';
-  document.getElementById('furniture-modal').classList.add('active');
-}
-
-function closeFurnitureModal(){
-  document.getElementById('furniture-modal').classList.remove('active');
-}
-
-async function saveFurnitureFromModal(){
-  const name = document.getElementById('form-name').value.trim();
-  const category = document.getElementById('form-category').value;
-  const width = parseFloat(document.getElementById('form-width').value);
-  const depth = parseFloat(document.getElementById('form-depth').value);
-  const color = document.getElementById('form-color').value;
-  
-  if(!name || !Number.isFinite(width) || !Number.isFinite(depth)){
-    alert('Please fill in all fields correctly.');
-    return;
-  }
-  
-  const template = 'custom_' + Date.now();
-  
-  try {
-    const result = await apiRequest('/api/furnitures', {method:'POST', body:JSON.stringify({name, template, width, depth, category, color})});
-    
-    const customItem = {
-      id: result.template,
-      dbId: result.id,
-      name: result.name,
-      footprint: {w: Number(result.width), d: Number(result.depth)},
-      swatch: parseInt(color.replace('#',''), 16) || 0xFF8A3D,
-      build: ()=>{
-        const g = new THREE.Group();
-        const colorVal = parseInt(color.replace('#',''), 16) || 0xFF8A3D;
-        const mesh = new THREE.Mesh(
-          new THREE.BoxGeometry(Number(result.width), 0.7, Number(result.depth)),
-          new THREE.MeshStandardMaterial({color: colorVal})
-        );
-        mesh.position.set(0, 0.35, 0);
-        mesh.castShadow = true; mesh.receiveShadow = true;
-        g.add(mesh);
-        return g;
-      }
-    };
-    CATALOG.push(customItem);
-    renderCatalog();
-    closeFurnitureModal();
-    alert('Furniture added to the catalog.');
-  } catch (error) {
-    alert('Error: ' + error.message);
-  }
+  openLayoutSelector();
 }
 
 function closeResizeModal(){
@@ -1224,7 +1184,10 @@ async function confirmResize(){
 }
 
 async function resizeSelectedFurniture(){
-  if(!selected) return;
+  if(!selected){
+    alert('Select a piece of furniture first to resize it.');
+    return;
+  }
   const currentW = selected.item.footprint.w;
   const currentD = selected.item.footprint.d;
   document.getElementById('resize-width').value = currentW.toFixed(1);
@@ -1273,12 +1236,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
   loadLayouts();
   
   // Close modal when clicking outside
-  document.getElementById('furniture-modal').addEventListener('click', (e)=>{
-    if(e.target === document.getElementById('furniture-modal')){
-      closeFurnitureModal();
-    }
-  });
-  
   document.getElementById('resize-modal').addEventListener('click', (e)=>{
     if(e.target === document.getElementById('resize-modal')){
       closeResizeModal();
@@ -1529,15 +1486,13 @@ document.getElementById('btn-clear').addEventListener('click', ()=>{
   if(confirm('Clear all furniture from the room?')){
     while(placed.length) removeFurniture(placed[0]);
     document.getElementById('empty-hint').style.opacity = '1';
+    currentLayoutId = null;
   }
 });
 
 document.getElementById('btn-save-layout').addEventListener('click', saveCurrentLayout);
 document.getElementById('btn-load-layout').addEventListener('click', loadSelectedLayout);
-document.getElementById('layout-select').addEventListener('change', loadSelectedLayout);
-document.getElementById('btn-new-furniture').addEventListener('click', createCustomFurniture);
 document.getElementById('btn-resize').addEventListener('click', resizeSelectedFurniture);
-
 const btn3d = document.getElementById('btn-view-3d');
 const btnPlan = document.getElementById('btn-view-plan');
 const scaleBar = document.getElementById('scale-bar');

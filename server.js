@@ -1,10 +1,14 @@
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 314;
+const layoutsFile = path.join(__dirname, 'layouts.json');
+const maxLayouts = 5;
 
 app.use(cors());
 app.use(express.json());
@@ -140,10 +144,24 @@ app.put('/api/furnitures/:id', async (req, res) => {
   }
 });
 
+async function readLayoutsFile() {
+  try {
+    const raw = await fs.promises.readFile(layoutsFile, 'utf8');
+    return JSON.parse(raw || '[]');
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+async function writeLayoutsFile(layouts) {
+  await fs.promises.writeFile(layoutsFile, JSON.stringify(layouts, null, 2), 'utf8');
+}
+
 app.get('/api/layouts', async (_req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM room_layouts ORDER BY id DESC');
-    res.json(rows);
+    const layouts = await readLayoutsFile();
+    res.json(layouts);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -156,13 +174,22 @@ app.post('/api/layouts', async (req, res) => {
   }
 
   try {
-    const { rows } = await pool.query(
-      `INSERT INTO room_layouts (name, width, depth, items)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [name, width, depth, JSON.stringify(items || [])]
-    );
-    res.status(201).json(rows[0]);
+    const layouts = await readLayoutsFile();
+    if (layouts.length >= maxLayouts) {
+      return res.status(400).json({ error: `Maximum of ${maxLayouts} saved layouts reached.` });
+    }
+
+    const nextId = layouts.reduce((max, layout) => Math.max(max, Number(layout.id) || 0), 0) + 1;
+    const newLayout = {
+      id: nextId,
+      name,
+      width,
+      depth,
+      items: items || []
+    };
+    layouts.unshift(newLayout);
+    await writeLayoutsFile(layouts);
+    res.status(201).json(newLayout);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -173,17 +200,21 @@ app.put('/api/layouts/:id', async (req, res) => {
   const { name, width, depth, items } = req.body;
 
   try {
-    const { rows } = await pool.query(
-      `UPDATE room_layouts
-       SET name = COALESCE($1, name), width = COALESCE($2, width), depth = COALESCE($3, depth), items = COALESCE($4, items)
-       WHERE id = $5
-       RETURNING *`,
-      [name, width, depth, items ? JSON.stringify(items) : undefined, id]
-    );
-    if (rows.length === 0) {
+    const layouts = await readLayoutsFile();
+    const index = layouts.findIndex(layout => String(layout.id) === String(id));
+    if (index === -1) {
       return res.status(404).json({ error: 'Layout not found.' });
     }
-    res.json(rows[0]);
+    const layout = layouts[index];
+    layouts[index] = {
+      ...layout,
+      name: name || layout.name,
+      width: width !== undefined ? width : layout.width,
+      depth: depth !== undefined ? depth : layout.depth,
+      items: items !== undefined ? items : layout.items
+    };
+    await writeLayoutsFile(layouts);
+    res.json(layouts[index]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

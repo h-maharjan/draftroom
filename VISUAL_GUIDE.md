@@ -81,7 +81,7 @@
 
 ## File Structure
 
-- `draftroom.html` - The full interactive app (static file served at http://localhost:3000)
+- `draftroom.html` - The full interactive app (static file served at http://localhost:314)
 - `server.js` - Node.js API for saving/loading furniture and layouts
 - `docker-compose.yml` - Database and server configuration
 

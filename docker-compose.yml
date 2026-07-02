@@ -19,15 +19,17 @@ services:
     build: .
     environment:
       DATABASE_URL: postgres://postgres:postgres@db:5432/draftroom
-      PORT: 3000
+      PORT: 314
     ports:
-      - "3000:3000"
+      - "314:314"
+      - "324:314"
+      - "334:314"
     depends_on:
       db:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:314/api/health"]
       interval: 10s
       timeout: 5s
       retries: 3
