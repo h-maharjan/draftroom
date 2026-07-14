@@ -6,34 +6,49 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Build Images') {
             steps {
-                script {
-                    if (isUnix()) {
-                        sh 'npm install'
-                    } else {
-                        bat 'npm install'
-                    }
-                }
+                sh 'docker compose build'
             }
         }
 
-        stage('Validate Server Syntax') {
+        stage('Deploy') {
             steps {
-                script {
-                    if (isUnix()) {
-                        sh 'node --check server.js'
-                    } else {
-                        bat 'node --check server.js'
-                    }
-                }
+                sh '''
+                    docker compose down
+                    docker compose up -d
+                '''
             }
+        }
+
+        stage('Wait for Services') {
+            steps {
+                sh 'sleep 20'
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                sh 'curl --fail http://localhost:3140/api/health'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Application deployed successfully.'
+        }
+
+        failure {
+            sh 'docker compose logs'
+            echo 'Deployment failed.'
         }
     }
 }
