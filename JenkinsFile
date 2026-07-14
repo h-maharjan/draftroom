@@ -1,0 +1,39 @@
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh 'npm install'
+                    } else {
+                        bat 'npm install'
+                    }
+                }
+            }
+        }
+
+        stage('Validate Server Syntax') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh 'node --check server.js'
+                    } else {
+                        bat 'node --check server.js'
+                    }
+                }
+            }
+        }
+    }
+}
