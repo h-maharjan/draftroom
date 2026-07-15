@@ -19,6 +19,14 @@ pipeline {
             }
         }
 
+        stage('Trivy Scan') {
+            steps {
+                sh '''
+                    trivy image --severity HIGH,CRITICAL devops-api:latest
+                '''
+            }
+        }
+
         stage('Deploy') {
             steps {
                 sh '''
